@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract ManajemenAsetKampus {
+
+address public admin;
+
+enum Status { Tersedia, Dipinjam, MenungguPersetujuan }
+
+struct Aset {
+    uint id;
+    string nama;
+    Status status;
+    address peminjamSekarang;
+}
+
+mapping(uint => Aset) public daftarAset;
+uint public totalAset;
+
+event AssetRegistered(uint id, string nama);
+event Borrowed(uint id, address peminjam);
+event Returned(uint id, address peminjam);
+
+modifier onlyAdmin() {
+    require(msg.sender == admin, "Hanya admin yang dapat melakukan ini");
+    _;
+}
+
+constructor() {
+    admin = msg.sender;
+}
+
+// Layer 3: registerAsset()
+function registerAsset(string memory _nama) public onlyAdmin {
+    totalAset++;
+    daftarAset[totalAset] = Aset(totalAset, _nama, Status.Tersedia, address(0));
+    emit AssetRegistered(totalAset, _nama);
+}
+
+// Layer 3: requestBorrow()
+function requestBorrow(uint _id) public {
+    require(daftarAset[_id].status == Status.Tersedia, "Aset tidak tersedia atau sedang diproses");
+    daftarAset[_id].status = Status.MenungguPersetujuan;
+    daftarAset[_id].peminjamSekarang = msg.sender;
+}
+
+// Layer 3: approveLoan()
+function approveLoan(uint _id) public onlyAdmin {
+    require(daftarAset[_id].status == Status.MenungguPersetujuan, "Tidak ada permintaan pinjaman");
+    daftarAset[_id].status = Status.Dipinjam;
+    emit Borrowed(_id, daftarAset[_id].peminjamSekarang);
+}
+
+// Layer 3: returnAsset()
+function returnAsset(uint _id) public {
+    require(daftarAset[_id].peminjamSekarang == msg.sender, "Bukan Anda peminjam aset ini");
+    require(daftarAset[_id].status == Status.Dipinjam, "Aset tidak dalam status dipinjam");
+    
+    daftarAset[_id].status = Status.Tersedia;
+    emit Returned(_id, msg.sender);
+    daftarAset[_id].peminjamSekarang = address(0);
+}
+}
+
+ni code nya
