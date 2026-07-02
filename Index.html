@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login  App Manajemen Aset</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            /* Background gradien animasi agar meriah */
+            background: linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #0d6efd);
+            background-size: 400% 400%;
+            animation: gradientBG 10s ease infinite;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            margin: 0;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Efek Glassmorphism */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 3rem 2.5rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            max-width: 450px;
+            width: 100%;
+            text-align: center;
+        }
+
+        /* Styling Input Transparan */
+        .glass-input {
+            background: rgba(255, 255, 255, 0.15) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            color: white !important;
+            border-radius: 10px;
+        }
+        
+        .glass-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.25) !important;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3) !important;
+        }
+        
+        /* Fix warna opsi dropdown biar kebaca */
+        .glass-input option {
+            color: #000;
+        }
+
+        .btn-connect {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            border: none;
+            color: #000;
+            font-weight: bold;
+            padding: 14px 24px;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(253, 160, 133, 0.4);
+        }
+
+        .btn-connect:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(253, 160, 133, 0.6);
+        }
+
+        .logo-icon {
+            font-size: 3.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .universal-badge {
+            background: rgba(25, 135, 84, 0.2);
+            border: 1px solid #198754;
+            color: #a3f7bf;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="glass-card">
+    <div class="logo-icon">🔗📦</div>
+    <h3 class="fw-bold mb-2">App Manajemen Aset Kampus</h3>
+    <div class="universal-badge">🌍 Universal Access - Tanpa Register</div>
+    
+    <p class="mb-4 small text-light">Masukkan data diri untuk tercatat di Smart Contract, lalu hubungkan Wallet.</p>
+
+    <form id="loginForm" onsubmit="processLogin(event)">
+        <!-- Input Nama -->
+        <div class="mb-3 text-start">
+            <label class="form-label small fw-bold text-light ms-1">Nama Lengkap / Organisasi</label>
+            <input type="text" class="form-control glass-input" id="userName" placeholder="Contoh: Yoga Abdilah" required>
+        </div>
+
+        <!-- Input NIM -->
+        <div class="mb-3 text-start">
+            <label class="form-label small fw-bold text-light ms-1">NIM / Nomor Identitas</label>
+            <input type="number" class="form-control glass-input" id="userNIM" placeholder="Contoh: 202332023" required>
+        </div>
+        
+        <!-- Input Role -->
+        <div class="mb-4 text-start">
+            <label class="form-label small fw-bold text-light ms-1">Masuk Sebagai</label>
+            <select class="form-select glass-input" id="userRole" required>
+                <option value="mahasiswa">Mahasiswa</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+
+        <!-- Tombol Login -->
+        <button type="submit" class="btn btn-connect w-100" id="btnLogin">
+             Masuk & Connect Wallet
+        </button>
+    </form>
+</div>
+
+<script>
+function processLogin(event){
+    event.preventDefault(); // Mencegah form reload halaman
+
+    const name = document.getElementById("userName").value;
+    const nim = document.getElementById("userNIM").value;
+    const role = document.getElementById("userRole").value; // Ambil data role
+    const btn = document.getElementById("btnLogin");
+
+    // Simpan data ke LocalStorage agar bisa dipakai di halaman selanjutnya
+    localStorage.setItem("sessionName", name);
+    localStorage.setItem("sessionNIM", nim);
+    localStorage.setItem("sessionRole", role); // Simpan role ke local storage
+
+    // Animasi Loading
+    btn.innerHTML = "🦊 Menghubungkan MetaMask...";
+    btn.classList.add("disabled");
+
+    // Simulasi delay koneksi wallet (1.5 detik)
+    setTimeout(() => {
+        btn.innerHTML = "✅ Berhasil Terhubung!";
+        btn.style.background = "linear-gradient(135deg, #11998e, #38ef7d)"; // Ubah warna jadi hijau
+        btn.style.color = "white";
+        
+        // Otomatis pindah sesuai role setelah sukses
+        setTimeout(() => {
+            window.location.href = "dashboard.html"; // Semua diarahkan ke dashboard
+        }, 800);
+        
+    }, 1500);
+}
+</script>
+
+</body>
+</html>

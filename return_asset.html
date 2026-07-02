@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pengembalian Aset - dApp</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            /* Background gradien yang fresh (mint/soft blue) menandakan penyelesaian */
+            background: linear-gradient(135deg, #e3ffe7 0%, #d9e7ff 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-bottom: 50px;
+        }
+
+        .form-card {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+            padding: 40px;
+            margin-top: 40px;
+            /* Garis atas warna merah untuk identitas tombol return sebelumnya */
+            border-top: 5px solid #dc3545; 
+        }
+
+        .page-title {
+            color: #dc3545;
+            font-weight: 800;
+        }
+
+        .btn-return {
+            background: linear-gradient(135deg, #ff416c, #ff4b2b);
+            border: none;
+            color: white;
+            font-weight: bold;
+            padding: 15px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 65, 108, 0.4);
+        }
+
+        .btn-return:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 65, 108, 0.6);
+            color: white;
+        }
+
+        .custom-file-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            
+            <div class="form-card">
+                <a href="dashboard.html" class="btn btn-outline-secondary mb-4 rounded-pill">
+                    &larr; Kembali ke Dashboard
+                </a>
+
+                <div class="text-center mb-4">
+                    <h2 class="page-title">🔄 Form Pengembalian Aset</h2>
+                </div>
+
+                <form id="returnForm" onsubmit="submitReturn(event)">
+                    
+                    <!-- Alert Info -->
+                    <div class="alert alert-info border-0 shadow-sm rounded-3 mb-4">
+                        💡 <strong>Info:</strong> Pastikan ID Transaksi/Aset sesuai dengan data peminjaman di Smart Contract.
+                    </div>
+
+                    <!-- 1. ID Aset & Nama -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="assetId" placeholder="ID Aset" required>
+                                <label for="assetId">ID Aset / Kode Barang</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="borrowerName" placeholder="Nama Peminjam" required>
+                                <label for="borrowerName">Nama Peminjam / Organisasi</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Kondisi Aset -->
+                    <div class="form-floating mb-4">
+                        <select class="form-select" id="assetCondition" aria-label="Kondisi Aset" required>
+                            <option value="" selected disabled>Pilih kondisi barang saat dikembalikan...</option>
+                            <option value="baik">🟢 Lengkap & Baik (Sesuai kondisi awal)</option>
+                            <option value="rusak_ringan">🟡 Rusak Ringan (Perlu perbaikan kecil)</option>
+                            <option value="rusak_berat">🔴 Rusak Berat / Hilang Sebagian</option>
+                        </select>
+                        <label for="assetCondition">Kondisi Aset Saat Dikembalikan</label>
+                    </div>
+
+                    <!-- 3. Foto Dokumentasi Pengembalian -->
+                    <div class="mb-4 bg-light p-3 rounded border">
+                        <label class="custom-file-label">📸 Foto Bukti Pengembalian (Kondisi Akhir)</label>
+                        <input class="form-control" type="file" id="returnPhoto" accept="image/*" required>
+                        <small class="text-muted">Upload foto barang saat diserahkan untuk transparansi.</small>
+                    </div>
+
+                    <!-- 4. Catatan (Opsional) -->
+                    <div class="form-floating mb-4">
+                        <textarea class="form-control" id="returnNotes" placeholder="Catatan Tambahan" style="height: 100px"></textarea>
+                        <label for="returnNotes">Catatan Tambahan (Bila ada kerusakan/kendala)</label>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn btn-return w-100 fs-5" id="btnReturn">
+                        📥 Kembalikan
+                    </button>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<!-- Wajib panggil app.js biar fungsi initMetaMask dan asetContract jalan -->
+<script src="app.js"></script>
+
+<script>
+    // Biar namanya langsung keisi otomatis kalau udah login
+    document.addEventListener("DOMContentLoaded", () => {
+        const savedName = localStorage.getItem("sessionName");
+        if (savedName) {
+            document.getElementById("borrowerName").value = savedName;
+        }
+    });
+
+    async function submitReturn(event) {
+        event.preventDefault(); 
+        
+        const assetIdInput = document.getElementById('assetId').value;
+        const btn = document.getElementById('btnReturn');
+        
+        // Panggil MetaMask dari app.js
+        const isConnected = await initMetaMask();
+        if (!isConnected) return;
+
+        const originalText = btn.innerHTML;
+        
+        try {
+            btn.innerHTML = '🔍 Mencari data aset di Blockchain...';
+            btn.classList.add('disabled');
+
+            // 1. CARI INDEX PEMINJAMAN
+            // Smart contract butuh angka index, bukan ID string, jadi kita harus cari manual di jaringan
+            let targetIndex = -1;
+            let i = 0;
+            
+            while (true) {
+                try {
+                    const data = await asetContract.riwayatPeminjaman(i);
+                    // Syarat ketemu: ID sama, udah diapprove admin, dan belum dibalikin
+                    if (data.idAset === assetIdInput && data.disetujui === true && data.sudahKembali === false) {
+                        targetIndex = i;
+                        break;
+                    }
+                    i++;
+                } catch (err) {
+                    break; // Data habis
+                }
+            }
+
+            if (targetIndex === -1) {
+                alert(`❌ Aset dengan ID "${assetIdInput}" tidak ditemukan dalam status "Sedang Dipinjam". Cek lagi ID-nya!`);
+                btn.innerHTML = originalText;
+                btn.classList.remove('disabled');
+                return;
+            }
+
+            // 2. EKSEKUSI PENGEMBALIAN
+            btn.innerHTML = '⏳ Menunggu Konfirmasi MetaMask...';
+            alert(`✅ Data ditemukan! Meminta persetujuan dompet buat balikin aset...`);
+
+            const tx = await asetContract.returnAsset(targetIndex);
+            
+            btn.innerHTML = '🔄 Memproses transaksi ke Blockchain...';
+            alert("🔄 Transaksi pengembalian lagi diproses. Tunggu sebentar ya...");
+            
+            await tx.wait(); // Nunggu transaksinya divalidasi
+            
+            // 3. SINKRONISASI DASHBOARD
+            // Kurangin angka barang yang lagi dipinjam
+            let dipinjam = parseInt(localStorage.getItem('sedangDipinjam')) || 4;
+            if(dipinjam > 0) {
+                localStorage.setItem('sedangDipinjam', dipinjam - 1);
+            }
+
+            // Tambahin jumlah total transaksi
+            let txCount = parseInt(localStorage.getItem('totalTx')) || 28;
+            localStorage.setItem('totalTx', txCount + 1);
+
+            alert('✅ Pengembalian Berhasil! \nStatus barang sekarang udah berubah jadi "Tersedia" di sistem.');
+            
+            // Balikin form ke awal
+            btn.innerHTML = originalText;
+            btn.classList.remove('disabled');
+            document.getElementById('returnForm').reset();
+            
+        } catch (error) {
+            console.error(error);
+            btn.innerHTML = '📥 Eksekusi returnAsset() & Kembalikan';
+            btn.classList.remove('disabled');
+            alert("❌ Gagal memproses pengembalian. Pastikan koneksi stabil.");
+        }
+    }
+</script>
+
+</body>
+</html>

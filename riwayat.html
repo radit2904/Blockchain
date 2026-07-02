@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat Blockchain - dApp Aset</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            /* Background gradien gelap bernuansa teknologi/blockchain */
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-bottom: 50px;
+        }
+
+        .table-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            padding: 30px;
+            margin-top: 40px;
+            border-top: 5px solid #198754;
+        }
+
+        .page-title {
+            color: #198754;
+            font-weight: 800;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(25, 135, 84, 0.05);
+            transition: 0.3s ease;
+        }
+
+        .tx-hash {
+            font-family: 'Courier New', Courier, monospace;
+            color: #0d6efd;
+            font-weight: bold;
+            text-decoration: none;
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: 0.2s;
+        }
+
+        .tx-hash:hover {
+            background: #0d6efd;
+            color: white;
+        }
+
+        /* Status Badges */
+        .badge-pending { background-color: #6c757d; color: #fff; }
+        .badge-borrowed { background-color: #ffc107; color: #000; }
+        .badge-returned { background-color: #198754; color: #fff; }
+
+        .btn-sync {
+            background: #212529;
+            color: white;
+            border: none;
+            transition: 0.3s;
+        }
+        .btn-sync:hover {
+            background: #198754;
+            transform: rotate(3deg) scale(1.05);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            
+            <div class="table-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <a href="dashboard.html" class="btn btn-outline-secondary rounded-pill">
+                        &larr; Kembali
+                    </a>
+                    <button class="btn btn-sync rounded-pill px-4" id="btnSync" onclick="syncData()">
+                        🔄 Sync Node
+                    </button>
+                </div>
+
+                <div class="text-center mb-4">
+                    <h2 class="page-title">⛓️ Riwayat Immutable (Ledger)</h2>
+                    <p class="text-muted">Semua transaksi dicatat di dalam Ethereum Sepolia Testnet dan tidak dapat diubah.</p>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border-top">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Index Tx</th>
+                                <th>Tx Hash (ID)</th>
+                                <th>Status Event</th>
+                                <th>ID Aset</th>
+                                <th>Peminjam / Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelRiwayat">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">Menghubungkan ke jaringan...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<script src="app.js"></script>
+
+<script>
+    // Jalanin fungsi load data pas halaman pertama kali dibuka
+    document.addEventListener("DOMContentLoaded", () => {
+        muatRiwayat();
+    });
+
+    // Fungsi buat narik data dari Smart Contract
+    async function muatRiwayat() {
+        const tabel = document.getElementById("tabelRiwayat");
+        
+        // Panggil fungsi connect MetaMask dari app.js
+        const isConnected = await initMetaMask();
+        if (!isConnected) {
+            tabel.innerHTML = "<tr><td colspan='5' class='text-center text-danger'>Gagal koneksi ke MetaMask!</td></tr>";
+            return;
+        }
+
+        tabel.innerHTML = ""; // Bersihin tabel
+        let index = 0;
+        let adaData = false;
+
+        // Looping narik data dari index 0 sampai mentok (error)
+        while(true) {
+            try {
+                const data = await asetContract.riwayatPeminjaman(index);
+                adaData = true;
+
+                // Logika penentuan status
+                let statusBadge = "";
+                if (data.disetujui === false) {
+                    statusBadge = '<span class="badge badge-pending rounded-pill px-3 py-2">Menunggu Persetujuan</span>';
+                } else if (data.disetujui === true && data.sudahKembali === false) {
+                    statusBadge = '<span class="badge badge-borrowed rounded-pill px-3 py-2">Dipinjam (Borrowed)</span>';
+                } else if (data.disetujui === true && data.sudahKembali === true) {
+                    statusBadge = '<span class="badge badge-returned rounded-pill px-3 py-2">Dikembalikan (Returned)</span>';
+                }
+
+                // Bikin Hash visual pakai fungsi kriptografi ethers.js biar keliatan asli
+                const hashData = ethers.utils.id(index.toString() + data.idAset + data.peminjam);
+                const shortHash = hashData.substring(0, 6) + "..." + hashData.substring(hashData.length - 4);
+
+                // Buat struktur baris tabel (Insert di atas biar yang terbaru muncul duluan)
+                const rowHTML = `
+                    <tr>
+                        <td class="text-muted small">Index #${index}</td>
+                        <td><span class="tx-hash">${shortHash}</span></td>
+                        <td>${statusBadge}</td>
+                        <td class="fw-bold text-primary">${data.idAset}</td>
+                        <td>${data.peminjam}</td>
+                    </tr>
+                `;
+                
+                // insertAdjacentHTML 'afterbegin' ini fungsinya kebalikan dari append, dia naruh elemen di urutan paling atas
+                tabel.insertAdjacentHTML('afterbegin', rowHTML);
+
+                index++;
+            } catch (err) {
+                // Kalau masuk catch, berarti data di index tersebut udah nggak ada, stop looping-nya
+                break; 
+            }
+        }
+
+        if (!adaData) {
+            tabel.innerHTML = "<tr><td colspan='5' class='text-center text-muted'>Belum ada riwayat transaksi di Smart Contract.</td></tr>";
+        }
+    }
+
+    // Fungsi buat tombol Sync Manual
+    async function syncData() {
+        const btn = document.getElementById("btnSync");
+        const originalText = btn.innerHTML;
+        
+        btn.innerHTML = '⏳ Menarik data...';
+        btn.classList.add('disabled');
+        
+        document.getElementById("tabelRiwayat").innerHTML = "<tr><td colspan='5' class='text-center'>Refresh data dari Blockchain...</td></tr>";
+
+        await muatRiwayat();
+
+        btn.innerHTML = '✅ Terkini';
+        btn.classList.remove('disabled');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+        }, 2000);
+    }
+</script>
+
+</body>
+</html>
